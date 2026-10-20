@@ -237,16 +237,16 @@ nav.tabs svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stro
         <summary>One-time setup</summary>
         <ol class="steps">
           <li><div><strong>Save your Wi-Fi on the reader.</strong><p>Settings → System → Wi-Fi Networks → add your home network. It must be 2.4 GHz; most home routers offer this.</p></div></li>
-          <li><div><strong>Create the “<span class="sc-name">Send to Xteink</span>” shortcut</strong><p>Open the Shortcuts app, tap +, name it exactly <code class="sc-name">Send to Xteink</code> and add these actions in order:</p>
+          <li><div><strong>Create the “<span class="sc-name">Send to Xteink</span>” shortcut</strong><p>Open the Shortcuts app, tap +, name it exactly <code class="sc-name">Send to Xteink</code> and add these actions in order. When you tap Send, Paperback copies the book links to the clipboard, one per line.</p>
             <ol class="actions">
-              <li><b>Get Dictionary from</b> Shortcut Input. If the shortcut stops with “No URL specified”, use <b>Get Clipboard</b> first and get the dictionary from Clipboard instead; Paperback copies the book list when you tap Send.</li>
-              <li><b>Get Dictionary Value</b> for key <code>mkdir</code> → <b>Get Contents of URL</b>: method POST, Request Body “Form”, fields <code>name</code> = <code id="sc-folder">Books</code> and <code>path</code> = <code>/</code></li>
-              <li><b>Get Dictionary Value</b> for key <code>books</code> in Dictionary → <b>Repeat with Each</b> item:
+              <li><b>Get Clipboard</b></li>
+              <li><b>Split</b> Clipboard by <b>New Lines</b></li>
+              <li><b>Repeat with Each</b> item in Split Text:
                 <ol>
-                  <li><b>Get Dictionary Value</b> <code>url</code> from Repeat Item → <b>Get Contents of URL</b></li>
-                  <li><b>Set Name</b> of Contents of URL to Dictionary Value <code>name</code> from Repeat Item</li>
-                  <li><b>Save File</b> to your Xteink folder (turn off “Ask Where to Save”)</li>
-                  <li><b>Get Dictionary Value</b> <code>upload</code> from Dictionary → <b>Get Contents of URL</b>: method POST, Request Body “Form”, add a <em>File</em> field named <code>file</code> = Renamed Item</li>
+                  <li><b>Get Contents of URL</b>: Repeat Item</li>
+                  <li><b>Set Variable</b> <code>Book</code> to Contents of URL</li>
+                  <li><b>Save File</b>: Book, to your Xteink folder (turn off “Ask Where to Save”)</li>
+                  <li><b>Get Contents of URL</b>: type <code>http://crosspoint.local/upload</code>, method POST, Request Body “Form”, add a <em>File</em> field named <code>file</code> = Book</li>
                 </ol>
               </li>
               <li><b>Show Notification</b> “Books sent to Xteink”</li>
@@ -284,14 +284,10 @@ nav.tabs svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stro
     <div class="panel">
       <h2>Reader settings</h2>
       <div class="fields">
-        <label for="set-host">Reader address</label>
-        <input id="set-host" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <label for="set-folder">Folder on the reader</label>
-        <input id="set-folder" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
         <label for="set-shortcut">Shortcut name</label>
         <input id="set-shortcut" type="text" autocomplete="off">
       </div>
-      <p>If <code>crosspoint.local</code> doesn't work, use the IP address the reader shows in Join a Network, for example <code>192.168.1.102</code>.</p>
+      <p>The reader's address is typed in the shortcut's upload step. If <code>crosspoint.local</code> doesn't work, replace it there with the IP address the reader shows in Join a Network, for example <code>http://192.168.1.102/upload</code>.</p>
     </div>
 
     <div class="panel">
@@ -568,55 +564,37 @@ function renderSendLede() {
 }
 
 /* ---------- settings ---------- */
-const DEFAULTS = { mode: "wifi", host: "crosspoint.local", folder: "Books", shortcut: "Send to Xteink" };
+const DEFAULTS = { mode: "wifi", shortcut: "Send to Xteink" };
 let settings = (() => {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem("paperback.settings") || "{}") }; } catch { return { ...DEFAULTS }; }
 })();
 function saveSettings() { try { localStorage.setItem("paperback.settings", JSON.stringify(settings)); } catch {} }
 
-function cleanHost(h) { return (h || "").trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "") || DEFAULTS.host; }
-function cleanFolder(f) { return (f || "").trim().replace(/^\/+|\/+$/g, ""); }
-
 function renderSettings() {
-  $("#set-host").value = settings.host;
-  $("#set-folder").value = settings.folder;
   $("#set-shortcut").value = settings.shortcut;
   document.querySelectorAll(".sc-name").forEach(e => { e.textContent = settings.shortcut; });
-  $("#sc-folder").textContent = settings.folder || "(leave this step out)";
   for (const m of ["wifi", "hotspot"]) {
     $("#mode-" + m).setAttribute("aria-checked", String(settings.mode === m));
     $("#send-" + m).hidden = settings.mode !== m;
   }
 }
-$("#set-host").addEventListener("change", e => { settings.host = cleanHost(e.target.value); saveSettings(); renderSettings(); });
-$("#set-folder").addEventListener("change", e => { settings.folder = cleanFolder(e.target.value); saveSettings(); renderSettings(); });
 $("#set-shortcut").addEventListener("change", e => { settings.shortcut = e.target.value.trim() || DEFAULTS.shortcut; saveSettings(); renderSettings(); });
 document.querySelectorAll(".segmented button").forEach(b => b.addEventListener("click", () => {
   settings.mode = b.dataset.mode; saveSettings(); renderSettings(); renderLibrary();
 }));
 
 /* ---------- sending via the iOS shortcut ---------- */
-function fileName(b) {
-  const base = [b.title, b.author].filter(Boolean).join(" - ").replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, " ").trim().slice(0, 100);
-  return (base || "book") + ".epub";
-}
-
+// The shortcut reads the book links from the clipboard, one per line.
 let pendingSend = [];
 function sendBooks(books) {
   if (!books.length) { toast("Nothing waiting. Download a book first."); return; }
-  const host = cleanHost(settings.host);
-  const folder = cleanFolder(settings.folder);
-  const payload = {
-    books: books.map(b => ({ url: b.url, name: fileName(b) })),
-    upload: `http://${host}/upload?path=${encodeURIComponent("/" + folder)}`,
-    mkdir: `http://${host}/mkdir`,
-    folder
+  const links = books.map(b => b.url).join("\n");
+  const run = () => {
+    pendingSend = books.map(b => b.key);
+    location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(settings.shortcut)}`;
   };
-  pendingSend = books.map(b => b.key);
-  const json = JSON.stringify(payload);
-  const run = () => { location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(settings.shortcut)}&input=text&text=${encodeURIComponent(json)}`; };
-  // Also put the list on the clipboard, for shortcuts that read it with Get Clipboard.
-  try { navigator.clipboard.writeText(json).then(run, run); } catch { run(); }
+  const failed = () => toast("Couldn't copy the book links. Tap Send again.");
+  try { navigator.clipboard.writeText(links).then(run, failed); } catch { failed(); }
 }
 
 // When the person comes back from Shortcuts, ask whether the books arrived.
