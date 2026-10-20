@@ -239,7 +239,7 @@ nav.tabs svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stro
           <li><div><strong>Save your Wi-Fi on the reader.</strong><p>Settings → System → Wi-Fi Networks → add your home network. It must be 2.4 GHz; most home routers offer this.</p></div></li>
           <li><div><strong>Create the “<span class="sc-name">Send to Xteink</span>” shortcut</strong><p>Open the Shortcuts app, tap +, name it exactly <code class="sc-name">Send to Xteink</code> and add these actions in order:</p>
             <ol class="actions">
-              <li><b>Get Dictionary from</b> Shortcut Input</li>
+              <li><b>Get Dictionary from</b> Shortcut Input. If the shortcut stops with “No URL specified”, use <b>Get Clipboard</b> first and get the dictionary from Clipboard instead; Paperback copies the book list when you tap Send.</li>
               <li><b>Get Dictionary Value</b> for key <code>mkdir</code> → <b>Get Contents of URL</b>: method POST, Request Body “Form”, fields <code>name</code> = <code id="sc-folder">Books</code> and <code>path</code> = <code>/</code></li>
               <li><b>Get Dictionary Value</b> for key <code>books</code> in Dictionary → <b>Repeat with Each</b> item:
                 <ol>
@@ -613,7 +613,10 @@ function sendBooks(books) {
     folder
   };
   pendingSend = books.map(b => b.key);
-  location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(settings.shortcut)}&input=text&text=${encodeURIComponent(JSON.stringify(payload))}`;
+  const json = JSON.stringify(payload);
+  const run = () => { location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(settings.shortcut)}&input=text&text=${encodeURIComponent(json)}`; };
+  // Also put the list on the clipboard, for shortcuts that read it with Get Clipboard.
+  try { navigator.clipboard.writeText(json).then(run, run); } catch { run(); }
 }
 
 // When the person comes back from Shortcuts, ask whether the books arrived.
