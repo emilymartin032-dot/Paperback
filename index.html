@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Paperback">
+<meta name="theme-color" content="#eceae4">
+<title>Paperback</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow reading column, e-ink paper tones, tab bar pinned to the bottom for thumb reach */
+:root {
+  --paper: #eceae4;
+  --sheet: #f7f6f2;
+  --ink: #1d1d1b;
+  --ink-soft: #66655f;
+  --rule: #d4d2ca;
+  --accent: #2d4a6b;
+  --ok: #3d6b4a;
+  --display: "Literata", Georgia, "Times New Roman", serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #161615; --sheet: #1f1f1d; --ink: #e8e6e0; --ink-soft: #9a988f; --rule: #33322f; --accent: #8fb0d6; --ok: #8cc09b; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.5 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+}
+h1 { font: 600 1.75rem/1.2 var(--display); margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font: 600 1.25rem/1.3 var(--display); margin: 0; text-wrap: balance; }
+.lede { color: var(--ink-soft); margin: 0 0 20px; font-size: 0.9375rem; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Search */
+.search { display: flex; gap: 8px; }
+.search input {
+  flex: 1; min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--sheet);
+  font-size: 1rem;
+}
+.search input:focus { outline: none; border-color: var(--accent); }
+.btn {
+  border: 0; border-radius: 10px;
+  padding: 12px 16px;
+  background: var(--ink); color: var(--paper);
+  font-weight: 600; font-size: 0.9375rem;
+}
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--rule); }
+.btn.small { padding: 8px 12px; font-size: 0.875rem; border-radius: 8px; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.toggle { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; font-size: 0.875rem; color: var(--ink-soft); }
+.toggle input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+
+.status { color: var(--ink-soft); font-size: 0.875rem; margin: 16px 0 0; min-height: 1.5em; }
+.list { list-style: none; margin: 8px 0 0; padding: 0; }
+.item {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.cover {
+  width: 56px; aspect-ratio: 2 / 3; max-width: 100%;
+  border-radius: 3px;
+  background: var(--rule);
+  object-fit: cover;
+  display: block;
+}
+.cover.blank { display: flex; align-items: center; justify-content: center; font: 600 1.25rem var(--display); color: var(--ink-soft); }
+.meta { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.title { font: 600 1rem/1.3 var(--display); overflow-wrap: anywhere; }
+.by { color: var(--ink-soft); font-size: 0.875rem; overflow-wrap: anywhere; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.tag { font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }
+.tag.free { color: var(--ok); font-weight: 600; }
+.note { font-size: 0.8125rem; color: var(--ink-soft); }
+a.link { color: var(--accent); font-size: 0.875rem; font-weight: 500; }
+
+.empty { text-align: center; padding: 48px 8px; color: var(--ink-soft); }
+.empty h2 { color: var(--ink); margin-bottom: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
+
+/* Library */
+.section-label { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin: 24px 0 0; }
+.sent .title { color: var(--ink-soft); }
+
+/* Send */
+.steps { list-style: none; counter-reset: s; margin: 16px 0 0; padding: 0; display: grid; gap: 16px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
+.steps li::before {
+  content: counter(s);
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--ink); display: flex; align-items: center; justify-content: center;
+  font: 600 0.875rem var(--body);
+}
+.steps p { margin: 2px 0 0; }
+.steps strong { font-weight: 600; }
+code { font: 0.875rem ui-monospace, "SF Mono", Menlo, monospace; background: var(--sheet); border: 1px solid var(--rule); padding: 1px 6px; border-radius: 5px; }
+.panel { background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 16px; margin-top: 24px; }
+.panel h2 { font-size: 1rem; margin-bottom: 4px; }
+.panel p { margin: 0; font-size: 0.875rem; color: var(--ink-soft); }
+
+/* Tabs */
+nav.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+nav.tabs .inner { max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); }
+nav.tabs button {
+  background: none; border: 0; padding: 14px 0 12px;
+  font-size: 0.8125rem; font-weight: 500; color: var(--ink-soft);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+nav.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+nav.tabs svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.badge { font-size: 0.6875rem; background: var(--accent); color: var(--paper); border-radius: 9px; padding: 0 6px; margin-left: 4px; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+  background: var(--ink); color: var(--paper);
+  padding: 10px 16px; border-radius: 10px; font-size: 0.875rem;
+  max-width: calc(100% - 32px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .toast { transition: opacity 0.2s; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <section id="view-search">
+    <h1>Paperback</h1>
+    <p class="lede">Find free books on Open Library and send them to your Xteink.</p>
+    <form class="search" id="search-form" role="search">
+      <input id="q" type="search" placeholder="Title, author or subject" autocomplete="off" enterkeyhint="search" aria-label="Search books">
+      <button class="btn" type="submit">Search</button>
+    </form>
+    <label class="toggle"><input id="free-only" type="checkbox" checked> Only books I can download for free</label>
+    <p class="status" id="status" aria-live="polite"></p>
+    <ul class="list" id="results"></ul>
+    <div class="empty" id="search-empty">
+      <h2>Start with a title or an author</h2>
+      <p>Free downloads are mostly older, public-domain books.</p>
+      <div class="chips">
+        <button class="btn ghost small" data-try="Jane Austen">Jane Austen</button>
+        <button class="btn ghost small" data-try="Sherlock Holmes">Sherlock Holmes</button>
+        <button class="btn ghost small" data-try="The Secret Garden">The Secret Garden</button>
+        <button class="btn ghost small" data-try="subject:fairy tales">Fairy tales</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-library" hidden>
+    <h1>Library</h1>
+    <p class="lede">Books you've downloaded to your phone. Mark them as sent once they're on the reader.</p>
+    <div id="library"></div>
+  </section>
+
+  <section id="view-send" hidden>
+    <h1>Send to Xteink</h1>
+    <p class="lede" id="send-lede"></p>
+    <ol class="steps">
+      <li><div><strong>Open Hotspot Mode on the reader.</strong><p>The screen shows a network called <code>CrossPoint-Reader</code>.</p></div></li>
+      <li><div><strong>Join that Wi-Fi network on your phone.</strong><p>Settings → Wi-Fi → CrossPoint-Reader. Your phone will say there's no internet; that's expected.</p></div></li>
+      <li><div><strong>Open the reader's upload page.</strong><p>Tap the button below, or scan the second QR code on the reader.</p>
+        <div class="row">
+          <a class="btn small" href="http://192.168.4.1/" target="_blank" rel="noopener">Open upload page</a>
+          <button class="btn ghost small" id="copy-url" type="button">Copy address</button>
+        </div>
+        <p class="note">If the page doesn't load, try <code>http://crosspoint.local/</code></p></div></li>
+      <li><div><strong>Choose the books from your folder.</strong><p>Pick them from the folder Safari saves downloads to, then upload.</p></div></li>
+      <li><div><strong>Come back and mark them as sent.</strong><p>Rejoin your normal Wi-Fi when you're done.</p></div></li>
+    </ol>
+    <div class="panel">
+      <h2>Keep your books in one folder</h2>
+      <p>On iPhone, go to Settings → Apps → Safari → Downloads and choose a folder such as “Xteink” in Files. Every book you download here will land there.</p>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="inner" role="tablist">
+    <button role="tab" data-view="search" aria-selected="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>Search
+    </button>
+    <button role="tab" data-view="library" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.6-1 3 15.4-3.6 1z"/></svg><span>Library<span class="badge" id="lib-count" hidden></span></span>
+    </button>
+    <button role="tab" data-view="send" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M12 15V7M9 10l3-3 3 3"/></svg>Send
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const OL = "https://openlibrary.org";
+const FIELDS = "key,title,author_name,first_publish_year,cover_i,ebook_access,ia,id_project_gutenberg,id_standard_ebooks";
+const $ = (s) => document.querySelector(s);
+
+/* ---------- storage ---------- */
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem("paperback.library") || "[]"); } catch { return []; } },
+  set(list) { try { localStorage.setItem("paperback.library", JSON.stringify(list)); } catch {} }
+};
+let library = store.get();
+
+/* ---------- tabs ---------- */
+function show(view) {
+  for (const v of ["search", "library", "send"]) $("#view-" + v).hidden = v !== view;
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === view)));
+  if (view === "library") renderLibrary();
+  if (view === "send") renderSendLede();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+}
+
+/* ---------- search ---------- */
+let searchSeq = 0;
+async function search(text) {
+  text = text.trim();
+  if (!text) return;
+  const seq = ++searchSeq;
+  const freeOnly = $("#free-only").checked;
+  $("#search-empty").hidden = true;
+  $("#results").innerHTML = "";
+  $("#status").textContent = "Searching Open Library…";
+  const q = freeOnly ? `${text} ebook_access:public` : text;
+  const url = `${OL}/search.json?q=${encodeURIComponent(q)}&fields=${FIELDS}&limit=40`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    if (seq !== searchSeq) return;
+    let docs = data.docs || [];
+    if (freeOnly) docs = docs.filter(isFree);
+    $("#status").textContent = docs.length
+      ? `${docs.length} ${docs.length === 1 ? "book" : "books"}${freeOnly ? " you can download" : ""}`
+      : freeOnly
+        ? "No free downloads matched. Try another spelling, or turn off the free-only filter to see books you can borrow."
+        : "Nothing matched. Try another spelling or fewer words.";
+    $("#results").replaceChildren(...docs.map(renderResult));
+  } catch (e) {
+    if (seq !== searchSeq) return;
+    $("#status").textContent = "Couldn't reach Open Library. Check that you're online (not on the reader's hotspot) and try again.";
+  }
+}
+$("#search-form").addEventListener("submit", (e) => { e.preventDefault(); $("#q").blur(); search($("#q").value); });
+$("#free-only").addEventListener("change", () => { if ($("#q").value.trim()) search($("#q").value); });
+document.querySelectorAll("[data-try]").forEach(b => b.addEventListener("click", () => { $("#q").value = b.dataset.try; search(b.dataset.try); }));
+
+function isFree(d) {
+  return !!(d.id_standard_ebooks?.length || d.id_project_gutenberg?.length || (d.ebook_access === "public" && d.ia?.length));
+}
+
+function coverEl(coverId, title) {
+  if (coverId) {
+    const img = document.createElement("img");
+    img.className = "cover"; img.loading = "lazy"; img.alt = "";
+    img.src = `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`;
+    return img;
+  }
+  const d = document.createElement("div");
+  d.className = "cover blank"; d.setAttribute("aria-hidden", "true");
+  d.textContent = (title || "?").trim().charAt(0).toUpperCase();
+  return d;
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function bookFromDoc(d) {
+  return {
+    key: d.key,
+    title: d.title || "Untitled",
+    author: (d.author_name || []).slice(0, 2).join(", "),
+    year: d.first_publish_year || null,
+    cover: d.cover_i || null,
+    se: d.id_standard_ebooks?.[0] || null,
+    pg: d.id_project_gutenberg?.[0] || null,
+    ia: d.ebook_access === "public" ? (d.ia || []).slice(0, 4) : []
+  };
+}
+
+function sourceLabel(b) {
+  if (b.se) return "Standard Ebooks";
+  if (b.pg) return "Project Gutenberg";
+  if (b.ia.length) return "Internet Archive";
+  return null;
+}
+
+function renderResult(d) {
+  const b = bookFromDoc(d);
+  const li = el("li", "item");
+  li.append(coverEl(b.cover, b.title));
+  const meta = el("div", "meta");
+  meta.append(el("div", "title", b.title));
+  meta.append(el("div", "by", [b.author, b.year].filter(Boolean).join(" · ")));
+  const row = el("div", "row");
+  const src = sourceLabel(b);
+  if (src) {
+    const owned = library.find(x => x.key === b.key);
+    const btn = el("button", "btn small", owned ? "Download again" : "Download EPUB");
+    btn.type = "button";
+    btn.addEventListener("click", () => download(b, btn));
+    row.append(btn, el("span", "tag free", "Free · " + src));
+  } else {
+    const a = el("a", "link", d.ebook_access === "borrowable" || d.ebook_access === "printdisabled" ? "Borrow on Open Library" : "View on Open Library");
+    a.href = OL + d.key; a.target = "_blank"; a.rel = "noopener";
+    row.append(a);
+  }
+  meta.append(row);
+  li.append(meta);
+  return li;
+}
+
+/* ---------- download ---------- */
+function seEpubUrl(id) {
+  return `https://standardebooks.org/ebooks/${id}/downloads/${id.replaceAll("/", "_")}.epub?source=download`;
+}
+
+async function iaEpubUrl(ids) {
+  for (const id of ids) {
+    try {
+      const res = await fetch(`https://archive.org/metadata/${encodeURIComponent(id)}`);
+      if (!res.ok) continue;
+      const m = await res.json();
+      if (m.metadata?.["access-restricted-item"] === "true") continue;
+      const f = (m.files || []).find(f => /\.epub$/i.test(f.name));
+      if (f) return `https://archive.org/download/${encodeURIComponent(id)}/${f.name.split("/").map(encodeURIComponent).join("/")}`;
+    } catch {}
+  }
+  return null;
+}
+
+async function download(b, btn) {
+  let url = null;
+  if (b.se) url = seEpubUrl(b.se);
+  else if (b.pg) url = `https://www.gutenberg.org/ebooks/${encodeURIComponent(b.pg)}.epub.images`;
+
+  // Open the tab right away so the browser treats it as a tap, then point it at the file.
+  const win = window.open("about:blank", "_blank");
+  if (!url) {
+    btn.disabled = true; btn.textContent = "Finding file…";
+    url = await iaEpubUrl(b.ia);
+    btn.disabled = false; btn.textContent = "Download EPUB";
+  }
+  if (!url) {
+    if (win) win.close();
+    toast("This edition has no EPUB. Open it on Open Library to see other formats.");
+    return;
+  }
+  if (win) win.location.href = url; else location.href = url;
+
+  const entry = { ...b, source: sourceLabel(b), url, added: Date.now(), sent: false };
+  library = [entry, ...library.filter(x => x.key !== b.key)];
+  store.set(library);
+  updateBadge();
+  btn.textContent = "Download again";
+  toast(`Downloading “${b.title}”. It's in your Library.`);
+}
+
+/* ---------- library ---------- */
+function updateBadge() {
+  const waiting = library.filter(x => !x.sent).length;
+  const badge = $("#lib-count");
+  badge.hidden = waiting === 0;
+  badge.textContent = waiting;
+}
+
+function libraryItem(b) {
+  const li = el("li", "item" + (b.sent ? " sent" : ""));
+  li.append(coverEl(b.cover, b.title));
+  const meta = el("div", "meta");
+  meta.append(el("div", "title", b.title));
+  meta.append(el("div", "by", [b.author, b.source].filter(Boolean).join(" · ")));
+  const row = el("div", "row");
+  const toggle = el("button", "btn small" + (b.sent ? " ghost" : ""), b.sent ? "Mark as not sent" : "Mark as sent");
+  toggle.type = "button";
+  toggle.addEventListener("click", () => {
+    b.sent = !b.sent; store.set(library); updateBadge(); renderLibrary();
+  });
+  const again = el("a", "link", "Download again");
+  again.href = b.url; again.target = "_blank"; again.rel = "noopener";
+  const remove = el("button", "btn ghost small", "Remove");
+  remove.type = "button";
+  remove.addEventListener("click", () => {
+    library = library.filter(x => x.key !== b.key); store.set(library); updateBadge(); renderLibrary();
+    toast("Removed from Library. The file stays in your folder.");
+  });
+  row.append(toggle, again, remove);
+  meta.append(row);
+  li.append(meta);
+  return li;
+}
+
+function renderLibrary() {
+  const box = $("#library");
+  box.replaceChildren();
+  if (!library.length) {
+    const e = el("div", "empty");
+    e.append(el("h2", null, "No books yet"), el("p", null, "Books you download from Search will show up here."));
+    box.append(e);
+    return;
+  }
+  const waiting = library.filter(x => !x.sent), sent = library.filter(x => x.sent);
+  if (waiting.length) {
+    box.append(el("p", "section-label", `Waiting to send · ${waiting.length}`));
+    const ul = el("ul", "list"); ul.append(...waiting.map(libraryItem)); box.append(ul);
+  }
+  if (sent.length) {
+    box.append(el("p", "section-label", `On the reader · ${sent.length}`));
+    const ul = el("ul", "list"); ul.append(...sent.map(libraryItem)); box.append(ul);
+  }
+}
+
+function renderSendLede() {
+  const n = library.filter(x => !x.sent).length;
+  $("#send-lede").textContent = n
+    ? `${n} ${n === 1 ? "book is" : "books are"} waiting. The reader makes its own Wi-Fi network, so this takes a minute.`
+    : "Nothing waiting right now. Here's how sending works when you have books ready.";
+}
+
+$("#copy-url").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText("http://192.168.4.1/"); toast("Copied http://192.168.4.1/"); }
+  catch { toast("Type http://192.168.4.1/ into Safari"); }
+});
+
+updateBadge();
+</script>
+</body>
+</html>
