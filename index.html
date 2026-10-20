@@ -111,8 +111,8 @@ a.link { color: var(--accent); font-size: 0.875rem; font-weight: 500; }
 
 /* Send */
 .steps { list-style: none; counter-reset: s; margin: 16px 0 0; padding: 0; display: grid; gap: 16px; }
-.steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
-.steps li::before {
+.steps > li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
+.steps > li::before {
   content: counter(s);
   width: 28px; height: 28px; border-radius: 50%;
   border: 1px solid var(--ink); display: flex; align-items: center; justify-content: center;
@@ -124,6 +124,27 @@ code { font: 0.875rem ui-monospace, "SF Mono", Menlo, monospace; background: var
 .panel { background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 16px; margin-top: 24px; }
 .panel h2 { font-size: 1rem; margin-bottom: 4px; }
 .panel p { margin: 0; font-size: 0.875rem; color: var(--ink-soft); }
+.panel > p + p, .panel .row + p { margin-top: 8px; }
+.panel .row { margin: 8px 0; }
+.panel code { overflow-wrap: anywhere; }
+details.panel summary { font: 600 1rem var(--display); cursor: pointer; }
+details.panel[open] summary { margin-bottom: 4px; }
+details.panel .steps p { color: var(--ink-soft); font-size: 0.875rem; }
+.actions { margin: 8px 0 0; padding-left: 20px; font-size: 0.875rem; display: grid; gap: 6px; }
+.actions ol { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; list-style: lower-alpha; }
+.actions b { font-weight: 600; }
+
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin: 8px 0 12px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; }
+.segmented button { border: 0; background: none; padding: 10px 8px; border-radius: 8px; font-weight: 500; font-size: 0.9375rem; color: var(--ink-soft); }
+.segmented button[aria-checked="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
+.btn.wide { width: 100%; margin-top: 12px; padding: 14px 16px; font-size: 1rem; }
+.label { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin: 24px 0 0; }
+.confirm { background: var(--sheet); border: 1px solid var(--accent); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+.confirm p { margin: 0; }
+.fields { display: grid; gap: 4px; margin: 8px 0 12px; }
+.fields label { font-size: 0.8125rem; color: var(--ink-soft); margin-top: 8px; }
+.fields input { padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); font-size: 1rem; min-width: 0; }
+.fields input:focus { outline: none; border-color: var(--accent); }
 
 /* Tabs */
 nav.tabs {
@@ -190,21 +211,92 @@ nav.tabs svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stro
   <section id="view-send" hidden>
     <h1>Send to Xteink</h1>
     <p class="lede" id="send-lede"></p>
-    <ol class="steps">
-      <li><div><strong>Open Hotspot Mode on the reader.</strong><p>The screen shows a network called <code>CrossPoint-Reader</code>.</p></div></li>
-      <li><div><strong>Join that Wi-Fi network on your phone.</strong><p>Settings → Wi-Fi → CrossPoint-Reader. Your phone will say there's no internet; that's expected.</p></div></li>
-      <li><div><strong>Open the reader's upload page.</strong><p>Tap the button below, or scan the second QR code on the reader.</p>
-        <div class="row">
-          <a class="btn small" href="http://192.168.4.1/" target="_blank" rel="noopener">Open upload page</a>
-          <button class="btn ghost small" id="copy-url" type="button">Copy address</button>
-        </div>
-        <p class="note">If the page doesn't load, try <code>http://crosspoint.local/</code></p></div></li>
-      <li><div><strong>Choose the books from your folder.</strong><p>Pick them from the folder Safari saves downloads to, then upload.</p></div></li>
-      <li><div><strong>Come back and mark them as sent.</strong><p>Rejoin your normal Wi-Fi when you're done.</p></div></li>
-    </ol>
+
+    <div class="confirm" id="confirm-sent" hidden>
+      <p><strong>Did the books arrive on the reader?</strong></p>
+      <div class="row">
+        <button class="btn small" id="confirm-yes" type="button">Yes, mark as sent</button>
+        <button class="btn ghost small" id="confirm-no" type="button">Not yet</button>
+      </div>
+    </div>
+
+    <div class="segmented" role="radiogroup" aria-label="How the reader connects">
+      <button type="button" role="radio" data-mode="wifi" id="mode-wifi">Home Wi-Fi</button>
+      <button type="button" role="radio" data-mode="hotspot" id="mode-hotspot">Reader hotspot</button>
+    </div>
+
+    <div id="send-wifi">
+      <p class="note">Recommended. The reader joins your Wi-Fi on its own, your phone stays online, and one tap sends every waiting book.</p>
+      <button class="btn wide" id="send-all" type="button">Send waiting books</button>
+      <p class="label">Each time</p>
+      <ol class="steps">
+        <li><div><strong>On the reader, open File Transfer → Join a Network.</strong><p>It reconnects to your saved Wi-Fi by itself. No QR codes.</p></div></li>
+        <li><div><strong>Tap “Send waiting books” above.</strong><p>Your phone downloads each book, saves it to your folder and uploads it to the reader.</p></div></li>
+      </ol>
+      <details class="panel" id="setup-details">
+        <summary>One-time setup</summary>
+        <ol class="steps">
+          <li><div><strong>Save your Wi-Fi on the reader.</strong><p>Settings → System → Wi-Fi Networks → add your home network. It must be 2.4 GHz; most home routers offer this.</p></div></li>
+          <li><div><strong>Create the “<span class="sc-name">Send to Xteink</span>” shortcut</strong><p>Open the Shortcuts app, tap +, name it exactly <code class="sc-name">Send to Xteink</code> and add these actions in order:</p>
+            <ol class="actions">
+              <li><b>Get Dictionary from</b> Shortcut Input</li>
+              <li><b>Get Dictionary Value</b> for key <code>mkdir</code> → <b>Get Contents of URL</b>: method POST, Request Body “Form”, fields <code>name</code> = <code id="sc-folder">Books</code> and <code>path</code> = <code>/</code></li>
+              <li><b>Get Dictionary Value</b> for key <code>books</code> in Dictionary → <b>Repeat with Each</b> item:
+                <ol>
+                  <li><b>Get Dictionary Value</b> <code>url</code> from Repeat Item → <b>Get Contents of URL</b></li>
+                  <li><b>Set Name</b> of Contents of URL to Dictionary Value <code>name</code> from Repeat Item</li>
+                  <li><b>Save File</b> to your Xteink folder (turn off “Ask Where to Save”)</li>
+                  <li><b>Get Dictionary Value</b> <code>upload</code> from Dictionary → <b>Get Contents of URL</b>: method POST, Request Body “Form”, add a <em>File</em> field named <code>file</code> = Renamed Item</li>
+                </ol>
+              </li>
+              <li><b>Show Notification</b> “Books sent to Xteink”</li>
+            </ol></div></li>
+          <li><div><strong>Test it.</strong><p>Put the reader in Join a Network, then tap Send on any book in your Library.</p></div></li>
+        </ol>
+      </details>
+    </div>
+
+    <div id="send-hotspot" hidden>
+      <p class="note">Works anywhere, without your home Wi-Fi. Your phone loses internet while it's connected to the reader.</p>
+      <ol class="steps">
+        <li><div><strong>Download your books first,</strong><p>while you still have internet.</p></div></li>
+        <li><div><strong>On the reader, open File Transfer → Create Hotspot.</strong></div></li>
+        <li><div><strong>On your phone, open Settings → Wi-Fi and tap CrossPoint-Reader.</strong><p>No QR code needed. After the first time your phone remembers the network.</p></div></li>
+        <li><div><strong>Open the reader's upload page and pick the books from your folder.</strong>
+          <div class="row">
+            <a class="btn small" href="http://192.168.4.1/" target="_blank" rel="noopener">Open upload page</a>
+            <button class="btn ghost small" id="copy-url" type="button">Copy address</button>
+          </div></div></li>
+        <li><div><strong>Mark them as sent in your Library,</strong><p>then rejoin your normal Wi-Fi.</p></div></li>
+      </ol>
+    </div>
+
+    <div class="panel">
+      <h2>Skip the phone entirely</h2>
+      <p>The reader can browse and download Project Gutenberg's free catalog on its own. On the reader, go to Settings → System → OPDS Servers → Add Server and enter:</p>
+      <div class="row">
+        <code id="opds-url">https://m.gutenberg.org/ebooks.opds/</code>
+        <button class="btn ghost small" id="copy-opds" type="button">Copy</button>
+      </div>
+      <p>Typing on the reader is slow, so you can add it from <code>http://crosspoint.local/settings</code> instead while the reader is in File Transfer.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Reader settings</h2>
+      <div class="fields">
+        <label for="set-host">Reader address</label>
+        <input id="set-host" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label for="set-folder">Folder on the reader</label>
+        <input id="set-folder" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label for="set-shortcut">Shortcut name</label>
+        <input id="set-shortcut" type="text" autocomplete="off">
+      </div>
+      <p>If <code>crosspoint.local</code> doesn't work, use the IP address the reader shows in Join a Network, for example <code>192.168.1.102</code>.</p>
+    </div>
+
     <div class="panel">
       <h2>Keep your books in one folder</h2>
-      <p>On iPhone, go to Settings → Apps → Safari → Downloads and choose a folder such as “Xteink” in Files. Every book you download here will land there.</p>
+      <p>On iPhone, go to Settings → Apps → Safari → Downloads and choose a folder such as “Xteink” in Files. Books you download here land there.</p>
     </div>
   </section>
 
@@ -421,7 +513,13 @@ function libraryItem(b) {
   meta.append(el("div", "title", b.title));
   meta.append(el("div", "by", [b.author, b.source].filter(Boolean).join(" · ")));
   const row = el("div", "row");
-  const toggle = el("button", "btn small" + (b.sent ? " ghost" : ""), b.sent ? "Mark as not sent" : "Mark as sent");
+  if (settings.mode === "wifi") {
+    const send = el("button", "btn small" + (b.sent ? " ghost" : ""), b.sent ? "Send again" : "Send");
+    send.type = "button";
+    send.addEventListener("click", () => sendBooks([b]));
+    row.append(send);
+  }
+  const toggle = el("button", "btn ghost small", b.sent ? "Mark as not sent" : "Mark as sent");
   toggle.type = "button";
   toggle.addEventListener("click", () => {
     b.sent = !b.sent; store.set(library); updateBadge(); renderLibrary();
@@ -463,15 +561,88 @@ function renderLibrary() {
 function renderSendLede() {
   const n = library.filter(x => !x.sent).length;
   $("#send-lede").textContent = n
-    ? `${n} ${n === 1 ? "book is" : "books are"} waiting. The reader makes its own Wi-Fi network, so this takes a minute.`
-    : "Nothing waiting right now. Here's how sending works when you have books ready.";
+    ? `${n} ${n === 1 ? "book is" : "books are"} waiting to go to the reader.`
+    : "Nothing waiting right now. Books you download show up here.";
+  $("#send-all").disabled = n === 0;
+  $("#send-all").textContent = n ? `Send ${n} waiting ${n === 1 ? "book" : "books"}` : "Send waiting books";
 }
 
-$("#copy-url").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText("http://192.168.4.1/"); toast("Copied http://192.168.4.1/"); }
-  catch { toast("Type http://192.168.4.1/ into Safari"); }
-});
+/* ---------- settings ---------- */
+const DEFAULTS = { mode: "wifi", host: "crosspoint.local", folder: "Books", shortcut: "Send to Xteink" };
+let settings = (() => {
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem("paperback.settings") || "{}") }; } catch { return { ...DEFAULTS }; }
+})();
+function saveSettings() { try { localStorage.setItem("paperback.settings", JSON.stringify(settings)); } catch {} }
 
+function cleanHost(h) { return (h || "").trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "") || DEFAULTS.host; }
+function cleanFolder(f) { return (f || "").trim().replace(/^\/+|\/+$/g, ""); }
+
+function renderSettings() {
+  $("#set-host").value = settings.host;
+  $("#set-folder").value = settings.folder;
+  $("#set-shortcut").value = settings.shortcut;
+  document.querySelectorAll(".sc-name").forEach(e => { e.textContent = settings.shortcut; });
+  $("#sc-folder").textContent = settings.folder || "(leave this step out)";
+  for (const m of ["wifi", "hotspot"]) {
+    $("#mode-" + m).setAttribute("aria-checked", String(settings.mode === m));
+    $("#send-" + m).hidden = settings.mode !== m;
+  }
+}
+$("#set-host").addEventListener("change", e => { settings.host = cleanHost(e.target.value); saveSettings(); renderSettings(); });
+$("#set-folder").addEventListener("change", e => { settings.folder = cleanFolder(e.target.value); saveSettings(); renderSettings(); });
+$("#set-shortcut").addEventListener("change", e => { settings.shortcut = e.target.value.trim() || DEFAULTS.shortcut; saveSettings(); renderSettings(); });
+document.querySelectorAll(".segmented button").forEach(b => b.addEventListener("click", () => {
+  settings.mode = b.dataset.mode; saveSettings(); renderSettings(); renderLibrary();
+}));
+
+/* ---------- sending via the iOS shortcut ---------- */
+function fileName(b) {
+  const base = [b.title, b.author].filter(Boolean).join(" - ").replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, " ").trim().slice(0, 100);
+  return (base || "book") + ".epub";
+}
+
+let pendingSend = [];
+function sendBooks(books) {
+  if (!books.length) { toast("Nothing waiting. Download a book first."); return; }
+  const host = cleanHost(settings.host);
+  const folder = cleanFolder(settings.folder);
+  const payload = {
+    books: books.map(b => ({ url: b.url, name: fileName(b) })),
+    upload: `http://${host}/upload?path=${encodeURIComponent("/" + folder)}`,
+    mkdir: `http://${host}/mkdir`,
+    folder
+  };
+  pendingSend = books.map(b => b.key);
+  location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(settings.shortcut)}&input=text&text=${encodeURIComponent(JSON.stringify(payload))}`;
+}
+
+// When the person comes back from Shortcuts, ask whether the books arrived.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && pendingSend.length) {
+    show("send");
+    $("#confirm-sent").hidden = false;
+  }
+});
+$("#confirm-yes").addEventListener("click", () => {
+  for (const b of library) if (pendingSend.includes(b.key)) b.sent = true;
+  store.set(library); updateBadge(); renderSendLede();
+  toast(pendingSend.length === 1 ? "Marked as sent." : `Marked ${pendingSend.length} books as sent.`);
+  pendingSend = []; $("#confirm-sent").hidden = true;
+});
+$("#confirm-no").addEventListener("click", () => {
+  pendingSend = []; $("#confirm-sent").hidden = true;
+  toast("Check that the reader is in Join a Network and on the same Wi-Fi as your phone.");
+});
+$("#send-all").addEventListener("click", () => sendBooks(library.filter(x => !x.sent)));
+
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); toast("Copied " + text); }
+  catch { toast("Couldn't copy. Type " + text + " instead."); }
+}
+$("#copy-url").addEventListener("click", () => copy("http://192.168.4.1/"));
+$("#copy-opds").addEventListener("click", () => copy($("#opds-url").textContent));
+
+renderSettings();
 updateBadge();
 </script>
 </body>
